@@ -11,8 +11,9 @@ You are a cyber explorer lost in a digital forest. Your goal is to navigate thro
 ## 🕹️ How to Play
 
 1.  **Click on the website link** provided by your instructor to start the challenge.
-2.  You will see a **terminal interface** in your web browser.
-3.  Use the following commands to explore the filesystem:
+2.  Web site link : https://cyber-forest-ctf.vercel.app/
+3.  You will see a **terminal interface** in your web browser.
+4.  Use the following commands to explore the filesystem:
 
 | Command | Example | What it does |
 | :--- | :--- | :--- |
