@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌲 Cyber Forest CTF Challenge</title>
+    <style>
+        body {
+            background-color: #0a0a0a;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            margin: 0;
+            padding: 20px;
+            line-height: 1.5;
+        }
+        #app {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        #header {
+            border-bottom: 1px solid #0f0;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        #terminal {
+            background-color: #111;
+            border: 1px solid #0f0;
+            border-radius: 5px;
+            padding: 15px;
+            height: 500px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+        }
+        #input-line {
+            display: flex;
+        }
+        #prompt {
+            margin-right: 10px;
+        }
+        #command-input {
+            flex-grow: 1;
+            background-color: #111;
+            border: 1px solid #0f0;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            padding: 5px;
+        }
+        .command {
+            color: #0af;
+            margin-bottom: 5px;
+        }
+        .output {
+            margin-bottom: 15px;
+            white-space: pre-wrap;
+        }
+        .error {
+            color: #f00;
+        }
+        .success {
+            color: #0f0;
+            font-weight: bold;
+        }
+        .warning {
+            color: #ff0;
+        }
+        .virus-effect {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #f00;
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2em;
+            color: #000;
+            animation: virusPulse 0.5s infinite;
+        }
+        @keyframes virusPulse {
+            0% { background-color: #f00; }
+            50% { background-color: #ff0; }
+            100% { background-color: #f00; }
+        }
+        #scoreboard {
+            margin-top: 20px;
+            border-top: 1px solid #0f0;
+            padding-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div id="header">
+            <h1>🌲 CYBER FOREST CTF CHALLENGE 🌲</h1>
+            <p>Navigate the dangerous cyber forest to find the hidden flags. Beware of traps!</p>
+        </div>
+        
+        <div id="terminal"></div>
+        
+        <div id="input-line">
+            <span id="prompt">user@cyberforest:$</span>
+            <input type="text" id="command-input" autofocus>
+        </div>
+        
+        <div id="scoreboard">
+            <h3>Flags Found: <span id="flags-found">0</span>/3</h3>
+            <p>Available commands: ls, cd, cat, file, help, clear</p>
+        </div>
+    </div>
+
+    <script>
+        // Game state
+        const state = {
+            currentPath: "/",
+            flagsFound: 0,
+            infected: false,
+            startTime: new Date(),
+            foundFlags: {
+                flag1: false,
+                flag2: false,
+                flag3: false
+            }
+        };
+
+        // File system structure
+        const fileSystem = {
+            "/": ["bin/", "home/", "tmp/", "readme.txt"],
+            "/bin/": ["ls", "cat", "virus", "safe_program"],
+            "/home/": ["user/", "guest/", "flag.txt"],
+            "/home/user/": ["Documents/", "Downloads/", "Pictures/", ".hidden_file"],
+            "/home/user/Documents/": ["note.txt", "flag2.txt", "secret.docx"],
+            "/home/user/Downloads/": ["malware.exe", "clean_file.zip", "suspicious.rar"],
+            "/home/user/Pictures/": ["vacation.jpg", "forest.png", "flag3.png"],
+            "/home/guest/": ["welcome.txt"],
+            "/tmp/": ["temp1", "temp2", "trash/"]
+        };
+
+        // File contents
+        const fileContents = {
+            "/readme.txt": "Welcome to the Cyber Forest!\nBe careful what files you open...",
+            "/home/flag.txt": "CTF{not_the_real_flag}",
+            "/home/user/Documents/note.txt": "Remember:\n- Don't open suspicious files\n- Check file types before opening\n- The real flags are well hidden",
+            "/home/user/Documents/flag2.txt": "CTF{you_found_the_second_flag}",
+            "/home/user/Documents/secret.docx": "This appears to be a Word document, but it's actually empty.",
+            "/home/user/Downloads/malware.exe": "VIRUS ACTIVATED! Your system is now compromised!",
+            "/home/user/Downloads/clean_file.zip": "This archive contains nothing interesting.",
+            "/home/user/Downloads/suspicious.rar": "This archive is password protected.",
+            "/home/user/Pictures/vacation.jpg": "A nice picture of the beach. Nothing hidden here.",
+            "/home/user/Pictures/forest.png": "A dense digital forest. Look closer...",
+            "/home/user/Pictures/flag3.png": "The flag is hidden in this image's metadata: CTF{metadata_master}",
+            "/home/guest/welcome.txt": "Guest account - no privileges here.",
+            "/home/user/.hidden_file": "CTF{hidden_in_plain_sight}",
+            "/bin/virus": "INFECTION! You shouldn't have run this!",
+            "/bin/safe_program": "This program does nothing dangerous."
+        };
+
+        // File types (for 'file' command)
+        const fileTypes = {
+            "/readme.txt": "ASCII text",
+            "/home/flag.txt": "ASCII text",
+            "/home/user/Documents/note.txt": "ASCII text",
+            "/home/user/Documents/flag2.txt": "ASCII text",
+            "/home/user/Documents/secret.docx": "Microsoft Word 2007+",
+            "/home/user/Downloads/malware.exe": "PE32 executable (GUI) Intel 80386",
+            "/home/user/Downloads/clean_file.zip": "Zip archive data",
+            "/home/user/Downloads/suspicious.rar": "RAR archive data",
+            "/home/user/Pictures/vacation.jpg": "JPEG image data",
+            "/home/user/Pictures/forest.png": "PNG image data",
+            "/home/user/Pictures/flag3.png": "PNG image data",
+            "/home/guest/welcome.txt": "ASCII text",
+            "/home/user/.hidden_file": "ASCII text",
+            "/bin/virus": "ELF 64-bit LSB executable",
+            "/bin/safe_program": "ELF 64-bit LSB executable"
+        };
+
+        // DOM elements
+        const terminal = document.getElementById('terminal');
+        const commandInput = document.getElementById('command-input');
+        const flagsFoundDisplay = document.getElementById('flags-found');
+
+        // Initialize terminal
+        printToTerminal('Type "help" for available commands\n\n');
+
+        // Command processing
+        commandInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                const command = commandInput.value.trim();
+                commandInput.value = '';
+                
+                if (command) {
+                    printToTerminal(`user@cyberforest:${state.currentPath}$ ${command}`, 'command');
+                    processCommand(command);
+                }
+            }
+        });
+
+        function processCommand(command) {
+            if (state.infected) {
+                printToTerminal('System locked due to infection! Please wait...', 'error');
+                return;
+            }
+
+            const parts = command.split(' ');
+            const cmd = parts[0];
+            const args = parts.slice(1);
+
+            switch (cmd) {
+                case 'ls':
+                    executeLs(args);
+                    break;
+                case 'cd':
+                    executeCd(args);
+                    break;
+                case 'cat':
+                    executeCat(args);
+                    break;
+                case 'file':
+                    executeFile(args);
+                    break;
+                case 'help':
+                    executeHelp();
+                    break;
+                case 'clear':
+                    terminal.innerHTML = '';
+                    break;
+                default:
+                    printToTerminal(`Command not found: ${cmd}`, 'error');
+            }
+        }
+
+        function executeLs(args) {
+            const path = args[0] ? resolvePath(args[0]) : state.currentPath;
+            
+            if (!fileSystem[path]) {
+                printToTerminal(`ls: cannot access '${args[0] || path}': No such file or directory`, 'error');
+                return;
+            }
+            
+            printToTerminal(fileSystem[path].join(' '));
+        }
+
+        function executeCd(args) {
+            if (!args[0]) {
+                state.currentPath = "/";
+                return;
+            }
+
+            let targetPath = resolvePath(args[0]);
+            
+            // Special case for parent directory
+            if (args[0] === '..') {
+                if (state.currentPath === '/') {
+                    printToTerminal('Already at root directory', 'warning');
+                    return;
+                }
+                
+                const parts = state.currentPath.split('/').filter(p => p);
+                parts.pop();
+                state.currentPath = parts.length ? '/' + parts.join('/') + '/' : '/';
+                return;
+            }
+            
+            // Check if directory exists
+            if (!fileSystem[targetPath] && !fileSystem[targetPath + '/']) {
+                printToTerminal(`cd: no such file or directory: ${args[0]}`, 'error');
+                return;
+            }
+            
+            // Add trailing slash if needed
+            if (!targetPath.endsWith('/')) {
+                targetPath += '/';
+            }
+            
+            state.currentPath = targetPath;
+        }
+
+        function executeCat(args) {
+            if (!args[0]) {
+                printToTerminal('Usage: cat FILE', 'error');
+                return;
+            }
+
+            const filePath = resolvePath(args[0]);
+            
+            if (filePath in fileContents) {
+                const content = fileContents[filePath];
+                printToTerminal(content);
+                
+                // Check for flags
+                checkForFlags(content);
+                
+                // Check for viruses
+                if (filePath === '/bin/virus' || filePath === '/home/user/Downloads/malware.exe') {
+                    triggerVirus();
+                }
+            } else {
+                printToTerminal(`cat: ${args[0]}: No such file or directory`, 'error');
+            }
+        }
+
+        function executeFile(args) {
+            if (!args[0]) {
+                printToTerminal('Usage: file FILE', 'error');
+                return;
+            }
+
+            const filePath = resolvePath(args[0]);
+            
+            if (filePath in fileTypes) {
+                printToTerminal(`${args[0]}: ${fileTypes[filePath]}`);
+            } else {
+                printToTerminal(`file: ${args[0]}: No such file or directory`, 'error');
+            }
+        }
+
+        function executeHelp() {
+            const helpText = `Available commands:
+ls [DIR]    - List directory contents
+cd [DIR]    - Change directory
+cat FILE    - Display file contents
+file FILE   - Determine file type
+help        - Display this help
+clear       - Clear the terminal
+
+Flags:
+There are 3 hidden flags in the system. Find them all!
+`;
+            printToTerminal(helpText);
+        }
+
+        function resolvePath(path) {
+            if (path.startsWith('/')) {
+                return path;
+            }
+            
+            return state.currentPath + path;
+        }
+
+        function checkForFlags(content) {
+            const flags = [
+                'CTF{hidden_in_plain_sight}',
+                'CTF{you_found_the_second_flag}',
+                'CTF{metadata_master}'
+            ];
+            
+            flags.forEach((flag, index) => {
+                if (content.includes(flag) && !state.foundFlags[`flag${index + 1}`]) {
+                    state.foundFlags[`flag${index + 1}`] = true;
+                    state.flagsFound++;
+                    flagsFoundDisplay.textContent = state.flagsFound;
+                    printToTerminal(`\nCongratulations! You found flag ${index + 1}: ${flag}`, 'success');
+                    
+                    if (state.flagsFound === 3) {
+                        const timeTaken = Math.floor((new Date() - state.startTime) / 1000);
+                        printToTerminal(`\n🎉 YOU WIN! 🎉\nFound all flags in ${timeTaken} seconds!`, 'success');
+                    }
+                }
+            });
+        }
+
+        function triggerVirus() {
+            state.infected = true;
+            
+            // Create virus effect
+            const virusDiv = document.createElement('div');
+            virusDiv.className = 'virus-effect';
+            virusDiv.textContent = '☠️ VIRUS DETECTED! SYSTEM COMPROMISED! ☠️';
+            document.body.appendChild(virusDiv);
+            
+            // Disable input
+            commandInput.disabled = true;
+            
+            // Remove virus after timeout
+            setTimeout(() => {
+                document.body.removeChild(virusDiv);
+                state.infected = false;
+                commandInput.disabled = false;
+                commandInput.focus();
+                printToTerminal('System restored. Be more careful next time!', 'warning');
+            }, 10000);
+        }
+
+        function printToTerminal(text, className = '') {
+            const div = document.createElement('div');
+            div.className = `output ${className}`;
+            div.textContent = text;
+            terminal.appendChild(div);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+    </script>
+</body>
+</html>
