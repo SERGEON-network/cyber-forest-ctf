@@ -1,4 +1,6 @@
-# 🌲 Welcome to the Cyber Forest CTF Challenge! 🌲
+# 🌲 Welco![Uploading Lucid_Origin_A_fullbody_shot_of_a_badass_elite_female_hacker_s_1.jpg…]()
+me to the Cyber Forest CTF Challenge! 🌲
+
 
 ## 🎯 Your Mission
 
